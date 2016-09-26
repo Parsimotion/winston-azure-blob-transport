@@ -1,0 +1,31 @@
+{
+  "name": "winston-azure-blob-transport",
+  "version": "0.0.1",
+  "description": "Winston Azure blob tranpsport",
+  "main": "index.js",
+  "scripts": {
+    "test": "grunt test",
+    "prepublish": "grunt build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Parsimotion/winston-azure-blob-transport.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "coffee-script": "^1.11.0",
+    "grunt": "1.0.1",
+    "grunt-bump": "0.8.0",
+    "grunt-contrib-clean": "1.0.0",
+    "grunt-contrib-coffee": "1.0.0",
+    "grunt-mocha-test": "0.12.7",
+    "mocha": "3.0.2",
+    "should": "11.1.0"
+  },
+  "author": "Parsimotion",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Parsimotion/winston-azure-blob-transport/issues"
+  },
+  "homepage": "https://github.com/Parsimotion/winston-azure-blob-transport#readme"
+}
