@@ -5,8 +5,11 @@ util = require "util"
 azure = require "azure-storage"
 async = require "async"
 winston = require "winston"
+chunk = require "chunk"
 
 Transport = winston.Transport
+
+MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
 
 module.exports = 
   class BlobTransport extends Transport
@@ -23,26 +26,35 @@ module.exports =
 
     _buildCargo: =>
       async.cargo (tasks, __whenFinishCargo) =>
-        __whenFinishTasks = -> 
+        __whenLogAllBlock = -> 
           debug "Finish append all lines to blob"
           _.each tasks, ({callback}) -> callback null, true
           __whenFinishCargo()
 
         debug "Log #{tasks.length}th lines"
         logBlock = _.map(tasks, "line").join ""
-        debug "Starting append log lines to blob. Size #{logBlock.length}"
-        @client.appendFromText @containerName, @blobName, logBlock, (err, result) =>
-          return @_retryIfNecessary(err, logBlock, __whenFinishTasks) if err
-          __whenFinishTasks()
 
-    _retryIfNecessary: (err, block, callback) =>
-      __append = => @client.createAppendBlobFromText @containerName, @blobName, block, {}, __handle
+        debug "Starting append log lines to blob. Size #{logBlock.length}"
+        chunks = chunk logBlock, MAX_BLOCK_SIZE
+        debug "Saving #{chunks.length} chunk(s)"
+
+        async.eachSeries chunks, (chunk, whenLoggedChunk) =>
+          debug "Saving log with size #{chunk.length}"
+          @client.appendFromText @containerName, @blobName, chunk, (err, result) =>
+            return @_retryIfNecessary(err, chunk, whenLoggedChunk) if err
+            whenLoggedChunk()
+        , (err) -> 
+          debug "Error in block" if err
+          __whenLogAllBlock()
+
+    _retryIfNecessary: (err, block, whenLoggedChunk) =>
+      __createAndAppend = => @client.createAppendBlobFromText @containerName, @blobName, block, {}, __handle
       __doesNotExistFile = -> err.code? && err.code is "NotFound"
       __handle = (err) ->
         debug "Error in append", err if err
-        callback()
+        whenLoggedChunk()
 
-      if __doesNotExistFile() then __append() else __handle err
+      if __doesNotExistFile() then __createAndAppend() else __handle err
       
     _formatLine: ({level, msg, meta}) => "[#{level}] - #{@_timestamp()} - #{msg} #{@_meta(meta)} \n"
 
