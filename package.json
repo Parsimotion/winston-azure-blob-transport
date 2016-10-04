@@ -20,6 +20,7 @@
     "winston": "2.2.0"
   },
   "devDependencies": {
+    "chance": "^1.0.4",
     "coffee-script": "1.11.0",
     "grunt": "1.0.1",
     "grunt-bump": "0.8.0",
