@@ -1,11 +1,12 @@
 _ = require "lodash"
 winston = require "winston"
-BlobTransport = require "../src"
 chance = new (require "chance")()
+
+require "winston-azure-blob-transport"
 
 logger = new (winston.Logger)(
   transports: [
-    new BlobTransport
+    new (winston.transports.AzureBlob)
       account:
         name: process.env.ACCOUNT_NAME
         key: process.env.ACCOUNT_KEY
