@@ -1,7 +1,7 @@
 {
   "name": "winston-azure-blob-transport",
   "version": "0.1.0",
-  "description": "Winston Azure blob tranpsport",
+  "description": "Winston Azure blob transport",
   "main": "index.js",
   "scripts": {
     "test": "vows src/*.spec.coffee --spec",
