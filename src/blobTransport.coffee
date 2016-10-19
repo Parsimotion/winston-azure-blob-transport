@@ -6,6 +6,7 @@ azure = require "azure-storage"
 async = require "async"
 winston = require "winston"
 chunk = require "chunk"
+Promise = require "bluebird"
 
 Transport = winston.Transport
 
