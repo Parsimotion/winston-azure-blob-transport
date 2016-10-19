@@ -16,7 +16,7 @@ class BlobTransport extends Transport
   constructor: ({@account, @containerName, @blobName, @level = "info"}) ->
     @name = "BlobTransport"
     @cargo = @_buildCargo()
-    @client = @_buildClient account
+    @client = @_buildClient @account
 
   initialize: ->
      Promise.promisifyAll azure.createBlobService @account.name, @account.key
