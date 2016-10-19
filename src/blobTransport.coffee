@@ -13,10 +13,15 @@ MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
-  constructor: ({account, @containerName, @blobName, @level = "info"}) ->
+  constructor: ({@account, @containerName, @blobName, @level = "info"}) ->
     @name = "BlobTransport"
     @cargo = @_buildCargo()
     @client = @_buildClient account
+
+  initialize: ->
+     Promise.promisifyAll azure.createBlobService @account.name, @account.key
+      .createContainerIfNotExistsAsync @containerName, publicAccessLevel: "blob"
+      .then (created) => debug "Container: #{@container} - #{if created then 'creada' else 'existente'}"
 
   log: (level, msg, meta, callback) =>
     line = @_formatLine {level, msg, meta}
@@ -25,7 +30,7 @@ class BlobTransport extends Transport
 
   _buildCargo: =>
     async.cargo (tasks, __whenFinishCargo) =>
-      __whenLogAllBlock = -> 
+      __whenLogAllBlock = ->
         debug "Finish append all lines to blob"
         _.each tasks, ({callback}) -> callback null, true
         __whenFinishCargo()
@@ -42,7 +47,7 @@ class BlobTransport extends Transport
         @client.appendFromText @containerName, @blobName, chunk, (err, result) =>
           return @_retryIfNecessary(err, chunk, whenLoggedChunk) if err
           whenLoggedChunk()
-      , (err) -> 
+      , (err) ->
         debug "Error in block" if err
         __whenLogAllBlock()
 
@@ -54,7 +59,7 @@ class BlobTransport extends Transport
       whenLoggedChunk()
 
     if __doesNotExistFile() then __createAndAppend() else __handle err
-    
+
   _formatLine: ({level, msg, meta}) => "[#{level}] - #{@_timestamp()} - #{msg} #{@_meta(meta)} \n"
 
   _timestamp: -> new Date().toISOString()
