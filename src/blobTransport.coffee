@@ -2,6 +2,7 @@ debug = require("debug")("winston-blob-transport")
 
 _ = require "lodash"
 util = require "util"
+errorToJson = require "error-to-json"
 azure = require "azure-storage"
 async = require "async"
 winston = require "winston"
@@ -65,7 +66,9 @@ class BlobTransport extends Transport
 
   _timestamp: -> new Date().toISOString()
 
-  _meta: (meta) => if _.isEmpty meta then "" else "- #{util.inspect(meta)}"
+  _meta: (meta) =>
+    meta = errorToJson meta if meta instanceof Error
+    if _.isEmpty meta then "" else "- #{util.inspect(meta)}"
 
   _buildClient : ({name, key}) =>
     azure.createBlobService name, key
