@@ -13,17 +13,37 @@ Transport = winston.Transport
 
 MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
 
+MB = azure.Constants.MB;
+
+HOUR_IN_MILLISECONDS = 60000 * 60;
+
 class BlobTransport extends Transport
 
-  constructor: ({@account, @containerName, @blobName, @level = "info"}) ->
+  constructor: ({@account, @containerName, @blobName, @maxBlobSize , @level = "info"}) ->
+    @maxBlobSize = if @maxBlobSize then (@maxBlobSize * MB) else undefined
+    @origBlobName = @blobName
+    @blobName = if @maxBlobSize then (@blobName + '-' + @_timestamp()) else @origBlobName
     @name = "BlobTransport"
     @cargo = @_buildCargo()
     @client = @_buildClient @account
+    @createNewBlobIfMaxSize();
+
+
+  createNewBlobIfMaxSize: () =>
+    instance = this;
+    setInterval ->
+      instance.client.listBlobsSegmentedWithPrefix(instance.containerName, instance.blobName, null,(err, result, response)->
+        if (err?)
+# Not much we can do here; swallow the error. Usually the next check will pass.
+        else if result && result.entries[0] && result.entries[0].contentLength >= instance.maxBlobSize
+          instance.blobName = instance.origBlobName + '-' + instance._timestamp()
+      )
+    ,HOUR_IN_MILLISECONDS
 
   initialize: ->
-     Promise.promisifyAll azure.createBlobService @account.name, @account.key
-      .createContainerIfNotExistsAsync @containerName, publicAccessLevel: "blob"
-      .then (created) => debug "Container: #{@container} - #{if created then 'creada' else 'existente'}"
+    Promise.promisifyAll azure.createBlobService @account.name, @account.key
+    .createContainerIfNotExistsAsync @containerName, publicAccessLevel: "blob"
+    .then (created) => debug "Container: #{@container} - #{if created then 'creada' else 'existente'}"
 
   log: (level, msg, meta, callback) =>
     line = @_formatLine {level, msg, meta}
