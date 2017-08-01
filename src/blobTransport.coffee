@@ -15,7 +15,7 @@ MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
-  constructor: ({@account, @containerName, @blobName, @level = "info"}) ->
+  constructor: ({@account, @containerName, @blobName, @level = "info", @nameResolver = { getBlobName: -> @blobName } }) ->
     @name = "BlobTransport"
     @cargo = @_buildCargo()
     @client = @_buildClient @account
@@ -46,7 +46,7 @@ class BlobTransport extends Transport
 
       async.eachSeries chunks, (chunk, whenLoggedChunk) =>
         debug "Saving log with size #{chunk.length}"
-        @client.appendFromText @containerName, @blobName, chunk, (err, result) =>
+        @client.appendFromText @containerName, @nameResolver.getBlobName(), chunk, (err, result) =>
           return @_retryIfNecessary(err, chunk, whenLoggedChunk) if err
           whenLoggedChunk()
       , (err) ->
@@ -54,7 +54,7 @@ class BlobTransport extends Transport
         __whenLogAllBlock()
 
   _retryIfNecessary: (err, block, whenLoggedChunk) =>
-    __createAndAppend = => @client.createAppendBlobFromText @containerName, @blobName, block, {}, __handle
+    __createAndAppend = => @client.createAppendBlobFromText @containerName, @nameResolver.getBlobName(), block, {}, __handle
     __doesNotExistFile = -> err.code? && err.code is "NotFound"
     __handle = (err) ->
       debug "Error in append", err if err
