@@ -3,11 +3,12 @@ vows = require "vows"
 async = require "async"
 sinon = require "sinon"
 should = require "should"
+require "should-sinon"
 proxyquire = require "proxyquire"
 helpers = require "winston/test/helpers"
 
-createTransport = (AzureBlobTransport) -> 
-  new AzureBlobTransport 
+createTransport = (AzureBlobTransport) ->
+  new AzureBlobTransport
     account:
       name: "accountName"
       key: "accountKey"
@@ -20,34 +21,30 @@ transportWithStub = ->
   stub = mockAzure appendFromText: sinon.stub().callsArgWith 3, null, null
   createTransport proxyquire "./blobTransport", stub
 
-transportWithMock = (n) ->
-  mock = 
-    callCount: 0
-    appendFromText: (a,b,c,callback) -> 
-      @callCount++
-      callback()
-
-  { 
-    transport: createTransport proxyquire "./blobTransport", mockAzure mock
-    mock
-  }
-
-testLogging = ({messages: {length, n = 1}, calls = 1}) ->
-  {transport, mock} = transportWithMock calls
+testLogging = ({messages: { length, n = 1 }, calls = 1}) ->
   successfulLineLogs = 0
   "when log #{n} line(s) with length #{length}":
-    "topic": -> 
-      lines = _.times n, -> _.repeat "*", length
-      _.each lines, (line) =>
-        transport.log "INFO", line, {}, =>
-          successfulLineLogs++
-          @callback() if successfulLineLogs is n
-      return
-    "should be call #{calls} time(s) to Azure": (topic) ->
-      successfulLineLogs.should.be.eql n
-      mock.callCount.should.be.eql calls
+    "topic": ->
+      transport = transportWithStub()
+      callback = sinon.spy()
 
-tests = _.merge( 
+      lines = _.times n, -> _.repeat "*", length
+      for line in lines
+        transport.log "INFO", line, {}, callback
+
+      setTimeout =>
+        @callback null, { transport, callback }
+      , 2000
+
+      return
+
+    "should be call #{calls} time(s) to Azure": ({ transport }) ->
+      transport.client.appendFromText.should.have.callCount calls
+
+    "should be call #{n} time(s) to success callback": ({ callback }) ->
+      callback.should.have.callCount n
+
+tests = _.merge(
   helpers.testNpmLevels(transportWithStub(), "should log messages to azure blob", (ign, err, logged) ->
     should(err).be.null()
     logged.should.be.not.null()
