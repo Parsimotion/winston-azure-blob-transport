@@ -9,7 +9,6 @@ module.exports = (grunt) ->
   #-------
   grunt.loadNpmTasks "grunt-contrib-clean"
   grunt.loadNpmTasks "grunt-contrib-coffee"
-  grunt.loadNpmTasks "grunt-mocha-test"
   grunt.loadNpmTasks "grunt-bump"
 
 
@@ -17,7 +16,6 @@ module.exports = (grunt) ->
   #Tasks
   #-----
   grunt.registerTask "default", "build"
-  grunt.registerTask "test", "mochaTest"
   grunt.registerTask "build", ["clean:build", "coffee", "clean:specs"]
 
   #------
