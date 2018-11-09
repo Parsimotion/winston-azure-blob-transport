@@ -21,7 +21,8 @@ class BlobTransport extends Transport
     @client = @_buildClient @account
 
   initialize: ->
-     Promise.promisifyAll azure.createBlobService @account.name, @account.key
+    connectionString = "DefaultEndpointsProtocol=https;AccountName=#{@account.name};AccountKey=#{@account.key}"
+    Promise.promisifyAll azure.createBlobService connectionString
       .createContainerIfNotExistsAsync @containerName, publicAccessLevel: "blob"
       .then (created) => debug "Container: #{@container} - #{if created then 'creada' else 'existente'}"
 
