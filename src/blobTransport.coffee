@@ -15,7 +15,8 @@ MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
-  constructor: ({@account, @containerName, @blobName, @level = "info", @nameResolver = { getBlobName: _.constant @blobName } }) ->
+  constructor: ({ @account, @containerName, @blobName, @level = "info", @nameResolver = { getBlobName: -> @blobName } }) ->
+    super()
     @name = "BlobTransport"
     @cargo = @_buildCargo()
     @client = @_buildClient @account
