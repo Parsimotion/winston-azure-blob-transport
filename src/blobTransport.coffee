@@ -11,7 +11,7 @@ Promise = require "bluebird"
 
 Transport = winston.Transport
 
-MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
+MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_APPEND_BLOB_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
