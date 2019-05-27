@@ -1,14 +1,12 @@
 _ = require "lodash"
-vows = require "vows"
-async = require "async"
+Promise = require "bluebird"
 sinon = require "sinon"
 should = require "should"
 require "should-sinon"
 proxyquire = require "proxyquire"
-helpers = require "winston/test/helpers"
 
 azure = require "azure-storage"
-MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_BLOCK_SIZE
+MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_APPEND_BLOB_BLOCK_SIZE
 
 mockAzure = (mock) ->
   "azure-storage":
@@ -26,9 +24,13 @@ transportWithStub = ({ nameResolver } = {}) ->
     nameResolver
   }
 
-testLogInBlocksSucessfully = ({messages: { sampleMessage, n = 1 }, calls = 1}) ->
-  "when log #{n} line(s) with length #{sampleMessage.length}":
-    "topic": ->
+testLogInBlocksSucessfully = ({ messages: { sampleMessage, n = 1 }, calls = 1 }) ->
+
+  describe "when log #{ n } line(s) with length #{ sampleMessage.length }", ->
+
+    { transport, callback } = {}
+    
+    beforeEach ->
       transport = transportWithStub()
       callback = sinon.spy()
 
@@ -36,37 +38,24 @@ testLogInBlocksSucessfully = ({messages: { sampleMessage, n = 1 }, calls = 1}) -
       for line in lines
         transport.log "INFO", line, {}, callback
 
-      setTimeout =>
-        @callback null, { transport, callback }
-      , 2000
-
-      return
-
-    "should be call #{calls} time(s) to Azure": ({ transport }) ->
+      Promise.delay(1000)
+      
+    it "should be call #{calls} time(s) to Azure", ->
       transport.client.appendFromText.should.have.callCount calls
 
-    "should be call #{n} time(s) to success callback": ({ callback }) ->
+    it "should be call #{n} time(s) to success callback", ->
       callback.should.have.callCount n
 
-    "should be called with file and container": ({ transport }) ->
+    it "should be called with file and container", ->
       transport.client.appendFromText.alwaysCalledWithMatch "containerName", "blobName", sinon.match.string, sinon.match.function
 
-testWithCustomNameResolver = ->
-  "use custom name resolver to save in a blob":
+describe "use custom name resolver to save in a blob", ->
 
-    "topic": ->
-      nameResolver = getBlobName: sinon.spy _.constant("otherBlobName")
-      transport = transportWithStub { nameResolver }
-
-      lines = _.times 10, (i) -> transport.log "INFO", "line #{i}", {}, _.noop
-
-      setTimeout =>
-        @callback null, { transport, nameResolver }
-      , 2000
-
-      return
-
-    "should be called with file and container": ({ transport, nameResolver }) ->
+  it "should be called with file and container", ->
+    nameResolver = getBlobName: sinon.spy _.constant("otherBlobName")
+    transport = transportWithStub { nameResolver }
+    lines = _.times 10, (i) -> transport.log "INFO", "line #{i}", {}, _.noop
+    Promise.delay(1000).then ->
       nameResolver.getBlobName.should.have.callCount 1
       transport.client.appendFromText.alwaysCalledWithMatch "containerName", "otherBlobName", sinon.match.string, sinon.match.function
 
@@ -76,32 +65,21 @@ sample = (n) ->
   maxSizeMessage = n - paddingLeft - paddingRight
   _.repeat "*", maxSizeMessage
 
-tests = _.merge(
-  helpers.testNpmLevels(transportWithStub(), "should log messages to azure blob", (ign, err, logged) ->
-    should(err).be.null()
-    logged.should.be.not.null()
-  ),
-  testLogInBlocksSucessfully(
-    messages:
-      sampleMessage: sample 100
-  ),
-  testLogInBlocksSucessfully(
-    messages:
-      sampleMessage: sample 100
-      n: 10
-  ),
-  testLogInBlocksSucessfully(
-    messages:
-      sampleMessage: sample MAX_BLOCK_SIZE - 1
-  ),
-  testLogInBlocksSucessfully(
-    messages:
-      sampleMessage: sample MAX_BLOCK_SIZE + 1
-    calls: 2
-  ),
-  testWithCustomNameResolver()
-)
-
-vows.describe("winston-azure-blob-transport").addBatch(
-  "the log() method": tests
-).export(module);
+testLogInBlocksSucessfully({
+  messages:
+    sampleMessage: sample 100
+})
+testLogInBlocksSucessfully({
+  messages:
+    sampleMessage: sample 100
+    n: 10
+})
+testLogInBlocksSucessfully({
+  messages:
+    sampleMessage: sample MAX_BLOCK_SIZE - 1
+})
+testLogInBlocksSucessfully({
+  messages:
+    sampleMessage: sample MAX_BLOCK_SIZE + 1
+  calls: 2
+})
