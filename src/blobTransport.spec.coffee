@@ -13,7 +13,11 @@ mockAzure = (mock) ->
     createBlobService: -> mock
 
 transportWithStub = ({ nameResolver } = {}) ->
-  stub = mockAzure appendFromText: sinon.stub().callsArgWith 3, null, null
+  stub = mockAzure {
+    appendFromText: sinon.stub().callsArgWith 3, null, null
+    createContainerIfNotExists: sinon.stub().callsArgWith 2, null
+  }
+
   AzureBlobTransport = proxyquire("./blobTransport", stub)
   new AzureBlobTransport {
     account:

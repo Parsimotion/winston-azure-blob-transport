@@ -22,6 +22,7 @@ class BlobTransport extends Transport
     @client = @_buildClient @account
     @nameResolver.getBlobName ?= => @blobName
     @nameResolver.getContainerName ?= => @containerName
+    @_createContainer = async.memoize @__createContainer
 
   initialize: ->
     Promise.resolve()
@@ -38,6 +39,9 @@ class BlobTransport extends Transport
     }
     return
 
+  __createContainer: (containerName, callback) =>
+    @client.createContainerIfNotExists containerName, { publicAccessLevel: "blob" }, callback
+
   _buildCargo: =>
     async.cargo (tasks, __whenFinishCargo) =>
       logsByBlob = _(tasks)
@@ -46,7 +50,10 @@ class BlobTransport extends Transport
 
       debug "Log in #{ logsByBlob.length } file(s)"
       async.eachSeries logsByBlob, (linesToLog, whenLogToBlob) =>
-        @_logInFile linesToLog[0].container, linesToLog[0].blobName, linesToLog, whenLogToBlob
+        containerName = linesToLog[0].container
+        @_createContainer containerName, (err) =>
+          whenLogToBlob err if err?
+          @_logInFile containerName, linesToLog[0].blobName, linesToLog, whenLogToBlob
       , (err) =>
         __whenFinishCargo()
 
