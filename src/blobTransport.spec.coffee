@@ -13,7 +13,11 @@ mockAzure = (mock) ->
     createBlobService: -> mock
 
 transportWithStub = ({ nameResolver } = {}) ->
-  stub = mockAzure appendFromText: sinon.stub().callsArgWith 3, null, null
+  stub = mockAzure {
+    appendFromText: sinon.stub().callsArgWith 3, null, null
+    createContainerIfNotExists: sinon.stub().callsArgWith 2, null
+  }
+
   AzureBlobTransport = proxyquire("./blobTransport", stub)
   new AzureBlobTransport {
     account:
@@ -49,15 +53,22 @@ testLogInBlocksSucessfully = ({ messages: { sampleMessage, n = 1 }, calls = 1 })
     it "should be called with file and container", ->
       transport.client.appendFromText.alwaysCalledWithMatch "containerName", "blobName", sinon.match.string, sinon.match.function
 
-describe "use custom name resolver to save in a blob", ->
+describe "use custom name resolver", ->
+
+  { nameResolver, container, id } = { container: 1923, id: 123 }
+
+  beforeEach ->
+    nameResolver = {
+      getBlobName: sinon.spy ({ meta }) -> meta.id
+      getContainerName: sinon.spy ({ meta }) -> meta.container
+    }
 
   it "should be called with file and container", ->
-    nameResolver = getBlobName: sinon.spy _.constant("otherBlobName")
     transport = transportWithStub { nameResolver }
-    lines = _.times 10, (i) -> transport.log "INFO", "line #{i}", {}, _.noop
+    lines = _.times 10, (i) -> transport.log "INFO", "line #{i}", { id, container }, _.noop
     Promise.delay(1000).then ->
-      nameResolver.getBlobName.should.have.callCount 1
-      transport.client.appendFromText.alwaysCalledWithMatch "containerName", "otherBlobName", sinon.match.string, sinon.match.function
+      nameResolver.getBlobName.should.have.callCount 10
+      transport.client.appendFromText.alwaysCalledWithMatch container, id, sinon.match.string, sinon.match.function
 
 sample = (n) ->
   paddingLeft = "[INFO] - #{new Date().toISOString()} - ".length

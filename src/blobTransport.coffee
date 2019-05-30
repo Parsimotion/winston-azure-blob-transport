@@ -1,4 +1,4 @@
-debug = require("debug")("winston-blob-transport")
+debug = require("debug")("winston-azure-blob-transport")
 
 _ = require "lodash"
 util = require "util"
@@ -15,49 +15,70 @@ MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_APPEND_BLOB_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
-  constructor: ({ @account, @containerName, @blobName, @level = "info", @nameResolver }) ->
+  constructor: ({ @account, @containerName, @blobName, @level = "info", @nameResolver = {} }) ->
     super()
     @name = "BlobTransport"
     @cargo = @_buildCargo()
     @client = @_buildClient @account
-    @nameResolver ?= { getBlobName: => @blobName }
+    @nameResolver.getBlobName ?= => @blobName
+    @nameResolver.getContainerName ?= => @containerName
+    @_createContainer = async.memoize @__createContainer
 
   initialize: ->
-    connectionString = "DefaultEndpointsProtocol=https;AccountName=#{@account.name};AccountKey=#{@account.key}"
-    Promise.promisifyAll azure.createBlobService connectionString
-      .createContainerIfNotExistsAsync @containerName, publicAccessLevel: "blob"
-      .then (created) => debug "Container: #{@container} - #{if created then 'created' else 'already exist'}"
-
+    Promise.resolve()
+    
   log: (level, msg, meta, callback) =>
-    line = @_formatLine {level, msg, meta}
-    @cargo.push { line, callback }
+    line = @_formatLine { level, msg, meta }
+    @cargo.push { 
+      level
+      msg
+      meta
+      container: @nameResolver.getContainerName { level, msg, meta }
+      blobName: @nameResolver.getBlobName { level, msg, meta }
+      callback
+    }
     return
+
+  __createContainer: (containerName, callback) =>
+    @client.createContainerIfNotExists containerName, { publicAccessLevel: "blob" }, callback
 
   _buildCargo: =>
     async.cargo (tasks, __whenFinishCargo) =>
-      __whenLogAllBlock = ->
-        debug "Finish append all lines to blob"
-        _.each tasks, ({callback}) -> callback null, true
+      logsByBlob = _(tasks)
+        .groupBy ({ container, blobName }) -> "#{ container }_#{ blobName }"
+        .values().value()
+
+      debug "Log in #{ logsByBlob.length } file(s)"
+      async.eachSeries logsByBlob, (linesToLog, whenLogToBlob) =>
+        containerName = linesToLog[0].container
+        @_createContainer containerName, (err) =>
+          whenLogToBlob err if err?
+          @_logInFile containerName, linesToLog[0].blobName, linesToLog, whenLogToBlob
+      , (err) =>
         __whenFinishCargo()
 
-      debug "Log #{tasks.length}th lines"
-      logBlock = _.map(tasks, "line").join ""
+  _logInFile: (containerName, blobName, linesToLog, callback) =>
+    __whenLogAllBlock = ->
+      line.callback() for line in linesToLog 
+      callback()
 
-      debug "Starting append log lines to blob. Size #{logBlock.length}"
-      chunks = chunk logBlock, MAX_BLOCK_SIZE
-      debug "Saving #{chunks.length} chunk(s)"
+    logBlock = _.map(linesToLog, @_formatLine).join ""
 
-      async.eachSeries chunks, (chunk, whenLoggedChunk) =>
-        debug "Saving log with size #{chunk.length}"
-        @client.appendFromText @containerName, @nameResolver.getBlobName(), chunk, (err, result) =>
-          return @_retryIfNecessary(err, chunk, whenLoggedChunk) if err
-          whenLoggedChunk()
-      , (err) ->
-        debug "Error in block" if err
-        __whenLogAllBlock()
+    debug "Starting append log lines to /#{ containerName }/#{ blobName }. Size #{ logBlock.length }"
+    chunks = chunk logBlock, MAX_BLOCK_SIZE
+    debug "Saving #{ chunks.length } chunk(s) to /#{ containerName }/#{ blobName }"
 
-  _retryIfNecessary: (err, block, whenLoggedChunk) =>
-    __createAndAppend = => @client.createAppendBlobFromText @containerName, @nameResolver.getBlobName(), block, {}, __handle
+    async.eachSeries chunks, (chunk, whenLoggedChunk) =>
+      debug "Saving log with size #{ chunk.length } to /#{ containerName }/#{ blobName }"
+      @client.appendFromText containerName, blobName, chunk, (err, result) =>
+        return @_retryIfNecessary(err, containerName, blobName, chunk, whenLoggedChunk) if err
+        whenLoggedChunk()
+    , (err) ->
+      debug "Error in block  /#{ containerName }/#{ blobName }" if err
+      __whenLogAllBlock()
+
+  _retryIfNecessary: (err, containerName, blobName, block, whenLoggedChunk) =>
+    __createAndAppend = => @client.createAppendBlobFromText containerName, blobName, block, {}, __handle
     __doesNotExistFile = -> err.code? && err.code is "NotFound"
     __handle = (err) ->
       debug "Error in append", err if err
@@ -65,7 +86,7 @@ class BlobTransport extends Transport
 
     if __doesNotExistFile() then __createAndAppend() else __handle err
 
-  _formatLine: ({level, msg, meta}) => "[#{level}] - #{@_timestamp()} - #{msg} #{@_meta(meta)}\n"
+  _formatLine: ({ level, msg, meta }) => "[#{level}] - #{@_timestamp()} - #{msg} #{@_meta(meta)}\n"
 
   _timestamp: -> new Date().toISOString()
 
