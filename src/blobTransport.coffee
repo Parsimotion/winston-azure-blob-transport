@@ -15,7 +15,7 @@ MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_APPEND_BLOB_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
-  constructor: ({ @account, @containerName, @blobName, @level = "info", @nameResolver = {} }) ->
+  constructor: ({ @account, @containerName, @blobName, @level = "info", @nameResolver = {}, @formatter }) ->
     super()
     @name = "BlobTransport"
     @cargo = @_buildCargo()
@@ -27,14 +27,13 @@ class BlobTransport extends Transport
   initialize: ->
     Promise.resolve()
     
-  log: (level, msg, meta, callback) =>
-    line = @_formatLine { level, msg, meta }
+  log: (level, message, meta, callback) =>
     @cargo.push { 
       level
-      msg
+      message
       meta
-      container: @nameResolver.getContainerName { level, msg, meta }
-      blobName: @nameResolver.getBlobName { level, msg, meta }
+      container: @nameResolver.getContainerName { level, message, meta }
+      blobName: @nameResolver.getBlobName { level, message, meta }
       callback
     }
     return
@@ -62,7 +61,7 @@ class BlobTransport extends Transport
       line.callback() for line in linesToLog 
       callback()
 
-    logBlock = _.map(linesToLog, @_formatLine).join ""
+    logBlock = _.map(linesToLog, @_formatLine).join "\n"
 
     debug "Starting append log lines to /#{ containerName }/#{ blobName }. Size #{ logBlock.length }"
     chunks = chunk logBlock, MAX_BLOCK_SIZE
@@ -86,7 +85,11 @@ class BlobTransport extends Transport
 
     if __doesNotExistFile() then __createAndAppend() else __handle err
 
-  _formatLine: ({ level, msg, meta }) => "[#{level}] - #{@_timestamp()} - #{msg} #{@_meta(meta)}\n"
+  _formatLine: (item) =>
+    (@formatter or @_defaultFormatter) item, @_defaultFormatter
+
+  _defaultFormatter: ({ level, message, meta }) =>
+    "[#{ level }] - #{ @_timestamp() } - #{ message } #{ @_meta(meta) }"
 
   _timestamp: -> new Date().toISOString()
 
