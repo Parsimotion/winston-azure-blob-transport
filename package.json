@@ -1,6 +1,6 @@
 {
   "name": "winston-azure-blob-transport",
-  "version": "0.2.11",
+  "version": "0.3.0",
   "description": "Winston Azure blob transport",
   "main": "index.js",
   "scripts": {
