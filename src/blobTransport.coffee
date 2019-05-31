@@ -61,7 +61,7 @@ class BlobTransport extends Transport
       line.callback() for line in linesToLog 
       callback()
 
-    logBlock = _.map(linesToLog, @_formatLine).join "\n"
+    logBlock = _.map(linesToLog, @_formatLine).join ""
 
     debug "Starting append log lines to /#{ containerName }/#{ blobName }. Size #{ logBlock.length }"
     chunks = chunk logBlock, MAX_BLOCK_SIZE
@@ -89,7 +89,7 @@ class BlobTransport extends Transport
     (@formatter or @_defaultFormatter) item, @_defaultFormatter
 
   _defaultFormatter: ({ level, message, meta }) =>
-    "[#{ level }] - #{ @_timestamp() } - #{ message } #{ @_meta(meta) }"
+    "[#{ level }] - #{ @_timestamp() } - #{ message } #{ @_meta(meta) }\n"
 
   _timestamp: -> new Date().toISOString()
 
