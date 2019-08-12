@@ -69,7 +69,7 @@ class BlobTransport extends Transport
 
     async.eachSeries chunks, (chunk, whenLoggedChunk) =>
       debug "Saving log with size #{ chunk.length } to /#{ containerName }/#{ blobName }"
-      @client.appendFromText containerName, blobName, chunk, (err, result) =>
+      @client.appendBlockFromText containerName, blobName, chunk, {}, (err, result) =>
         return @_retryIfNecessary(err, containerName, blobName, chunk, whenLoggedChunk) if err
         whenLoggedChunk()
     , (err) ->
@@ -78,7 +78,7 @@ class BlobTransport extends Transport
 
   _retryIfNecessary: (err, containerName, blobName, block, whenLoggedChunk) =>
     __createAndAppend = => @client.createAppendBlobFromText containerName, blobName, block, {}, __handle
-    __doesNotExistFile = -> err.code? && err.code is "NotFound"
+    __doesNotExistFile = -> err.code? && err.code in ["NotFound", "BlobNotFound"]
     __handle = (err) ->
       debug "Error in append", err if err
       whenLoggedChunk()

@@ -14,7 +14,7 @@ mockAzure = (mock) ->
 
 transportWithStub = ({ nameResolver } = {}) ->
   stub = mockAzure {
-    appendFromText: sinon.stub().callsArgWith 3, null, null
+    appendBlockFromText: sinon.stub().callsArgWith 4, null, null
     createContainerIfNotExists: sinon.stub().callsArgWith 2, null
   }
 
@@ -45,13 +45,13 @@ testLogInBlocksSucessfully = ({ messages: { sampleMessage, n = 1 }, calls = 1 })
       Promise.delay(1000)
       
     it "should be call #{calls} time(s) to Azure", ->
-      transport.client.appendFromText.should.have.callCount calls
+      transport.client.appendBlockFromText.should.have.callCount calls
 
     it "should be call #{n} time(s) to success callback", ->
       callback.should.have.callCount n
 
     it "should be called with file and container", ->
-      transport.client.appendFromText.alwaysCalledWithMatch "containerName", "blobName", sinon.match.string, sinon.match.function
+      transport.client.appendBlockFromText.alwaysCalledWithMatch "containerName", "blobName", sinon.match.string, {}, sinon.match.function
 
 describe "use custom name resolver", ->
 
@@ -68,7 +68,7 @@ describe "use custom name resolver", ->
     lines = _.times 10, (i) -> transport.log "INFO", "line #{i}", { id, container }, _.noop
     Promise.delay(1000).then ->
       nameResolver.getBlobName.should.have.callCount 10
-      transport.client.appendFromText.alwaysCalledWithMatch container, id, sinon.match.string, sinon.match.function
+      transport.client.appendBlockFromText.alwaysCalledWithMatch container, id, sinon.match.string, {}, sinon.match.function
 
 sample = (n) ->
   paddingLeft = "[INFO] - #{new Date().toISOString()} - ".length

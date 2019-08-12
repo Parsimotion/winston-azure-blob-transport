@@ -30,7 +30,7 @@ module.exports = (grunt) ->
       specs: src: "lib/*.spec.js"
 
     #Compile coffee
-    exec: compile: cmd: "coffee --compile --transpile --output lib/ src/"
+    exec: compile: cmd: "./node_modules/coffeescript/bin/coffee --compile --transpile --output lib/ src/"
 
     # Run tests
     mochaTest:
