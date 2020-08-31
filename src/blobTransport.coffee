@@ -15,7 +15,7 @@ MAX_BLOCK_SIZE = azure.Constants.BlobConstants.MAX_APPEND_BLOB_BLOCK_SIZE
 
 class BlobTransport extends Transport
 
-  constructor: ({ @account, @containerName, @blobName, @level, @nameResolver = {}, @formatter }) ->
+  constructor: ({ @account, @containerName, @blobName, @level, @nameResolver = {}, @formatter, @inspectOptions }) ->
     super()
     @name = "BlobTransport"
     @cargo = @_buildCargo()
@@ -95,7 +95,7 @@ class BlobTransport extends Transport
 
   _meta: (meta) =>
     meta = errorToJson meta if meta instanceof Error
-    if _.isEmpty meta then "" else "- #{util.inspect(meta)}"
+    if _.isEmpty meta then "" else "- #{util.inspect(meta, @inspectOptions)}"
 
   _buildClient : ({name, key}) =>
     azure.createBlobService name, key
