@@ -1,0 +1,14 @@
+name: Trufflehog Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  trufflehog-scan:
+    uses: Parsimotion/public-workflows/.github/workflows/trufflehog-scan.yml@main
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+      base-commit: ${{ github.event.pull_request.base.sha }}
