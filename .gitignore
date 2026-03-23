@@ -40,3 +40,7 @@ jspm_packages
 lib
 
 package-lock.json
+
+site.config
+*.env
+*.env.*
