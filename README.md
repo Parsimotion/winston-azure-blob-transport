@@ -40,6 +40,7 @@ The Azure transport accepts the following options:
 * __account.key:__ The access key used to authenticate into this storage account
 * __blobName:__ The name of the blob to log.
 * __containerName:__ The container which will contain the logs.
+* __nameResolver:__ Optional object with the functions `getBlobName` and `getContainerName`, which receive `{ level, message, meta }` and return the blob name and the container name for each log. If they are not passed, `blobName` and `containerName` are used.
 
 [0]: http://www.windowsazure.com/en-us/develop/nodejs/
 [1]: https://github.com/flatiron/winston
